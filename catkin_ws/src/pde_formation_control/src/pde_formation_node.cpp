@@ -7,8 +7,8 @@
 #include <ros/ros.h>
 #include <string>
 #include <signal.h>
-
-// 全局控制器指针，用于优雅关闭
+#include<stdio.h>
+// 全局控制器指针，用于优雅关闭haha
 PDEFormationController* g_controller = nullptr;
 
 /**
