@@ -42,6 +42,9 @@ add_executable(pde_formation_node src/pde_formation_node.cpp)
 ## Add dependencies to the executable
 add_dependencies(pde_formation_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
+add_executable(basic_controller src/basic_controller.cpp)
+target_link_libraries(basic_controller ${catkin_LIBRARIES})
+
 ## Specify libraries to link the executable target against
 target_link_libraries(pde_formation_node
   ${PROJECT_NAME}
