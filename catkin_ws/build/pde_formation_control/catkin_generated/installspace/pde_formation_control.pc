@@ -1,0 +1,8 @@
+prefix=/home/agilex/catkin_ws/install
+
+Name: pde_formation_control
+Description: Description of pde_formation_control
+Version: 0.1.0
+Cflags: -I${prefix}/include
+Libs: -L${prefix}/lib -lpde_formation_control
+Requires: roscpp std_msgs geometry_msgs nav_msgs tf

@@ -1,0 +1,8 @@
+prefix=/home/agilex/catkin_ws/install
+
+Name: limo_pde_controller
+Description: Description of limo_pde_controller
+Version: 0.1.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

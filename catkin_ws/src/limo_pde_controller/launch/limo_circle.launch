@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Launch the PDE-based circle controller for Limo robot -->
+  <node name="limo_pde_circle_controller" pkg="limo_pde_controller" type="limo_pde_circle_controller" output="screen">
+    <param name="circle_radius" value="0.8" />  <!-- Circle radius in meters -->
+    <param name="linear_speed" value="0.2" />   <!-- Linear speed in m/s -->
+    <param name="update_rate" value="10.0" />   <!-- Control update rate in Hz -->
+    
+    <!-- Remap topics if necessary -->
+    <remap from="/cmd_vel" to="/cmd_vel" />
+    <remap from="/odom" to="/odom" />
+  </node>
+</launch>

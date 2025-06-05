@@ -1,0 +1,41 @@
+<launch>
+    <!-- 机器人1 - 领导者(Alpha=0) -->
+    <node name="pde_formation_robot1" pkg="pde_formation_control" type="pde_formation_node" output="screen">
+        <param name="robot_id" value="1"/>
+        <param name="role" value="0"/>
+        <param name="alpha" value="0.0"/>
+        <param name="center_x" value="0.0"/>
+        <param name="center_y" value="0.0"/>
+        <param name="radius" value="1.2"/>
+    </node>
+    
+    <!-- 机器人2 - 跟随者 -->
+    <node name="pde_formation_robot2" pkg="pde_formation_control" type="pde_formation_node" output="screen">
+        <param name="robot_id" value="2"/>
+        <param name="role" value="2"/>
+        <param name="alpha" value="0.25"/>
+        <param name="center_x" value="0.0"/>
+        <param name="center_y" value="0.0"/>
+        <param name="radius" value="1.2"/>
+    </node>
+    
+    <!-- 机器人3 - 跟随者 -->
+    <node name="pde_formation_robot3" pkg="pde_formation_control" type="pde_formation_node" output="screen">
+        <param name="robot_id" value="3"/>
+        <param name="role" value="2"/>
+        <param name="alpha" value="0.5"/>
+        <param name="center_x" value="0.0"/>
+        <param name="center_y" value="0.0"/>
+        <param name="radius" value="1.2"/>
+    </node>
+    
+    <!-- 机器人4 - 跟随者 -->
+    <node name="pde_formation_robot4" pkg="pde_formation_control" type="pde_formation_node" output="screen">
+        <param name="robot_id" value="4"/>
+        <param name="role" value="2"/>
+        <param name="alpha" value="0.75"/>
+        <param name="center_x" value="0.0"/>
+        <param name="center_y" value="0.0"/>
+        <param name="radius" value="1.2"/>
+    </node>
+</launch>
