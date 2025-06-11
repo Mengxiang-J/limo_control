@@ -1,7 +1,7 @@
 #include "pde_formation_control/pde_formation_controller.h"
 #include <iostream>
 #include <iomanip>
-
+#include <algorithm>  // 添加这个，用于std::min, std::max
 PDEFormationController::PDEFormationController() : nh_(), pnh_("~") {
     // 从参数服务器读取参数
     pnh_.param("circle_radius", circle_traj_.radius, 0.8);
@@ -36,8 +36,15 @@ void PDEFormationController::initializeRobotStates() {
     desired_states_.resize(pde_params_.N);
     alpha_values_.resize(pde_params_.N);
     
+    // 修正alpha值计算
     for (int i = 0; i < pde_params_.N; i++) {
-        alpha_values_[i] = static_cast<double>(i) / (pde_params_.N - 1);
+        if (pde_params_.N == 1) {
+            alpha_values_[i] = 0.0;  // 单机器人情况
+        } else {
+            alpha_values_[i] = static_cast<double>(i) / (pde_params_.N - 1);
+        }
+        
+        // 初始化期望状态的导数存储
         desired_states_[i].derivatives_x.resize(pde_params_.m + 1);
         desired_states_[i].derivatives_y.resize(pde_params_.m + 1);
     }
@@ -47,30 +54,41 @@ void PDEFormationController::initializeRobotStates() {
         ROS_INFO("  Robot %d (limo%d): alpha = %.3f", i+1, i+1, alpha_values_[i]);
     }
 }
-
+// 修改initializePublishersSubscribers函数
 void PDEFormationController::initializePublishersSubscribers() {
-    std::vector<std::string> robot_names = {"limo1", "limo2", "limo3", "limo4"};
-    
     cmd_vel_pubs_.resize(pde_params_.N);
     odom_subs_.resize(pde_params_.N);
     
+    // 使用统一的话题命名
+    std::vector<std::string> cmd_topics = {
+        "/limo1/cmd_vel", "/limo2/cmd_vel", "/limo3/cmd_vel", "/limo4/cmd_vel"
+    };
+    std::vector<std::string> odom_topics = {
+        "/limo1/odom", "/limo2/odom", "/limo3/odom", "/limo4/odom"
+    };
+    std::vector<std::string> robot_names = {"limo1", "limo2", "limo3", "limo4"};
+    
     for (int i = 0; i < pde_params_.N; i++) {
-        std::string cmd_topic = "/" + robot_names[i] + "/cmd_vel";
-        cmd_vel_pubs_[i] = nh_.advertise<geometry_msgs::Twist>(cmd_topic, 10);
-        
-        std::string odom_topic = "/" + robot_names[i] + "/odom";
+        cmd_vel_pubs_[i] = nh_.advertise<geometry_msgs::Twist>(cmd_topics[i], 10);
         odom_subs_[i] = nh_.subscribe<nav_msgs::Odometry>(
-            odom_topic, 10, 
+            odom_topics[i], 10, 
             boost::bind(&PDEFormationController::odomCallback, this, _1, i)
         );
         
-        ROS_INFO("Setup robot %d: cmd_vel->%s, odom->%s", 
-                 i+1, cmd_topic.c_str(), odom_topic.c_str());
+        ROS_INFO("Setup robot %d (%s): cmd_vel->%s, odom->%s", 
+                 i+1, robot_names[i].c_str(), cmd_topics[i].c_str(), odom_topics[i].c_str());
     }
+    
+    ros::Duration(2.0).sleep();
 }
-
 void PDEFormationController::odomCallback(const nav_msgs::Odometry::ConstPtr& msg, int robot_id) {
-    if (robot_id < 0 || robot_id >= pde_params_.N) return;
+    if (robot_id < 0 || robot_id >= pde_params_.N) {
+        ROS_ERROR("Invalid robot_id: %d", robot_id);
+        return;
+    }
+    
+    // 添加调试信息
+    ROS_INFO_ONCE("Received odometry data for robot %d (limo%d)", robot_id+1, robot_id+1);
     
     auto& state = robot_states_[robot_id];
     
@@ -94,6 +112,20 @@ void PDEFormationController::odomCallback(const nav_msgs::Odometry::ConstPtr& ms
         ROS_INFO("Robot %d (limo%d) initialized at position (%.2f, %.2f)", 
                  robot_id+1, robot_id+1, state.x, state.y);
         state.initialized = true;
+    }
+    
+    // 修正的调试信息部分
+    static std::vector<int> callback_count;
+    if (callback_count.size() != pde_params_.N) {
+        callback_count.resize(pde_params_.N, 0);
+    }
+    
+    if (robot_id >= 0 && robot_id < callback_count.size()) {
+        callback_count[robot_id]++;
+        if (callback_count[robot_id] % 50 == 0) {
+            ROS_INFO("Robot %d callback count: %d, pos: (%.2f, %.2f)", 
+                     robot_id+1, callback_count[robot_id], state.x, state.y);
+        }
     }
 }
 
@@ -140,54 +172,64 @@ PDEFormationController::DesiredState PDEFormationController::computeDesiredTraje
 geometry_msgs::Twist PDEFormationController::computeBoundaryControl(int robot_id, double t) {
     geometry_msgs::Twist cmd;
     
-    if (robot_id != 0 && robot_id != pde_params_.N - 1) {
-        return cmd;
-    }
+    if (robot_id != 0) return cmd;
     
-    DesiredState desired = computeDesiredTrajectory(alpha_values_[robot_id], t);
-    desired_states_[robot_id] = desired;
+    // 简单的圆形运动：恒定前进速度 + 恒定角速度
+    double linear_speed = 0.2;    // 前进速度 m/s
+    double angular_speed = 0.3;   // 角速度 rad/s
     
-    double error_x = desired.x - robot_states_[robot_id].x;
-    double error_y = desired.y - robot_states_[robot_id].y;
+    cmd.linear.x = linear_speed;
+    cmd.angular.z = angular_speed;
     
-    // 边界控制律实现
-    if (pde_params_.m >= 3) {
-        double boundary_term_x = 0.0;
-        double boundary_term_y = 0.0;
-        
-        for (int j = 3; j <= pde_params_.m; j++) {
-            if (j-2 < desired.derivatives_x.size()) {
-                boundary_term_x += pde_params_.a_coeffs[j] * desired.derivatives_x[j-2];
-                boundary_term_y += pde_params_.b_coeffs[j] * desired.derivatives_y[j-2];
-            }
-        }
-        
-        double k_term_x = 0.0;
-        double k_term_y = 0.0;
-        for (int j = 2; j <= pde_params_.m; j++) {
-            k_term_x += pde_params_.a_coeffs[j] * error_x;
-            k_term_y += pde_params_.b_coeffs[j] * error_y;
-        }
-        
-        if (robot_id == 0) {
-            cmd.linear.x = desired.vx + pde_params_.k0 * 
-                          (pde_params_.L * boundary_term_x - pde_params_.K * k_term_x);
-            cmd.linear.y = desired.vy + pde_params_.k0 * 
-                          (pde_params_.L * boundary_term_y - pde_params_.K * k_term_y);
-        } else {
-            cmd.linear.x = desired.vx + pde_params_.ka * 
-                          ((pde_params_.K + pde_params_.L) * k_term_x - pde_params_.L * boundary_term_x);
-            cmd.linear.y = desired.vy + pde_params_.ka * 
-                          ((pde_params_.K + pde_params_.L) * k_term_y - pde_params_.L * boundary_term_y);
-        }
-    } else {
-        cmd.linear.x = desired.vx + pde_params_.k0 * pde_params_.K * pde_params_.a_coeffs[2] * error_x;
-        cmd.linear.y = desired.vy + pde_params_.ka * (pde_params_.K + pde_params_.L) * pde_params_.a_coeffs[2] * error_y;
-    }
+    // 当前位置
+    double current_x = robot_states_[robot_id].x;
+    double current_y = robot_states_[robot_id].y;
+    
+    ROS_INFO_THROTTLE(1.0, "Simple circle: pos(%.2f,%.2f) cmd(lin=%.2f, ang=%.2f)", 
+                     current_x, current_y, cmd.linear.x, cmd.angular.z);
     
     return cmd;
 }
 
+// 新增多机器人边界控制函数
+geometry_msgs::Twist PDEFormationController::computeBoundaryControlMultiRobot(int robot_id, double t) {
+    geometry_msgs::Twist cmd;
+    
+    // 计算该机器人在圆形编队中的期望位置
+    double alpha = alpha_values_[robot_id];
+    double time_elapsed = t - circle_traj_.start_time;
+    double phase = 2.0 * M_PI * alpha + circle_traj_.angular_freq * time_elapsed;
+    
+    double desired_x = circle_traj_.center_x + circle_traj_.radius * cos(phase);
+    double desired_y = circle_traj_.center_y + circle_traj_.radius * sin(phase);
+    
+    // 当前位置
+    double current_x = robot_states_[robot_id].x;
+    double current_y = robot_states_[robot_id].y;
+    double current_theta = robot_states_[robot_id].theta;
+    
+    // 位置误差
+    double error_x = desired_x - current_x;
+    double error_y = desired_y - current_y;
+    double distance_error = sqrt(error_x*error_x + error_y*error_y);
+    
+    // 计算期望朝向
+    double desired_theta = atan2(error_y, error_x);
+    double angle_error = desired_theta - current_theta;
+    while (angle_error > M_PI) angle_error -= 2*M_PI;
+    while (angle_error < -M_PI) angle_error += 2*M_PI;
+    
+    // 差分驱动控制
+    if (fabs(angle_error) > 0.2) {
+        cmd.linear.x = 0.0;
+        cmd.angular.z = (angle_error > 0) ? 0.5 : -0.5;
+    } else {
+        cmd.linear.x = std::min(0.8 * distance_error, 0.25);
+        cmd.angular.z = std::max(-0.5, std::min(0.5, 1.5 * angle_error));
+    }
+    
+    return cmd;
+}
 geometry_msgs::Twist PDEFormationController::computeFollowerControl(int robot_id, double t) {
     geometry_msgs::Twist cmd;
     
@@ -204,6 +246,45 @@ geometry_msgs::Twist PDEFormationController::computeFollowerControl(int robot_id
     
     return cmd;
 }
+// 新增跟随者控制函数
+geometry_msgs::Twist PDEFormationController::computeFollowerControlMultiRobot(int robot_id, double t) {
+    geometry_msgs::Twist cmd;
+    
+    // 检查邻居是否可用
+    if (!robot_states_[robot_id-1].initialized || !robot_states_[robot_id+1].initialized) {
+        return cmd;
+    }
+    
+    // 简化的PDE跟随控制：平均邻居位置
+    double neighbor_avg_x = (robot_states_[robot_id-1].x + robot_states_[robot_id+1].x) / 2.0;
+    double neighbor_avg_y = (robot_states_[robot_id-1].y + robot_states_[robot_id+1].y) / 2.0;
+    
+    double current_x = robot_states_[robot_id].x;
+    double current_y = robot_states_[robot_id].y;
+    double current_theta = robot_states_[robot_id].theta;
+    
+    // 跟随邻居的平均位置
+    double error_x = neighbor_avg_x - current_x;
+    double error_y = neighbor_avg_y - current_y;
+    double distance_error = sqrt(error_x*error_x + error_y*error_y);
+    
+    double desired_theta = atan2(error_y, error_x);
+    double angle_error = desired_theta - current_theta;
+    while (angle_error > M_PI) angle_error -= 2*M_PI;
+    while (angle_error < -M_PI) angle_error += 2*M_PI;
+    
+    // 控制律
+    if (fabs(angle_error) > 0.2) {
+        cmd.linear.x = 0.0;
+        cmd.angular.z = (angle_error > 0) ? 0.3 : -0.3;
+    } else {
+        cmd.linear.x = std::min(0.6 * distance_error, 0.2);
+        cmd.angular.z = std::max(-0.3, std::min(0.3, 1.0 * angle_error));
+    }
+    
+    return cmd;
+}
+
 
 double PDEFormationController::computePDEDiscretization(int robot_id, bool is_x_axis) {
     double result = 0.0;
@@ -282,62 +363,79 @@ bool PDEFormationController::checkStabilityConditions() {
     
     return stable;
 }
+void PDEFormationController::printFormationStatus() {
+    ROS_INFO("=== Formation Status ===");
+    for (int i = 0; i < pde_params_.N; i++) {
+        if (robot_states_[i].initialized) {
+            // 计算期望位置
+            double alpha = alpha_values_[i];
+            double time_elapsed = ros::Time::now().toSec() - circle_traj_.start_time;
+            double phase = 2.0 * M_PI * alpha + circle_traj_.angular_freq * time_elapsed;
+            
+            double desired_x = circle_traj_.center_x + circle_traj_.radius * cos(phase);
+            double desired_y = circle_traj_.center_y + circle_traj_.radius * sin(phase);
+            
+            double error_x = desired_x - robot_states_[i].x;
+            double error_y = desired_y - robot_states_[i].y;
+            double error = sqrt(error_x*error_x + error_y*error_y);
+            
+            std::string role = (i == 0 || i == pde_params_.N-1) ? "Leader" : "Follower";
+            ROS_INFO("Robot %d (%s): pos(%.2f,%.2f) target(%.2f,%.2f) error=%.2f", 
+                     i+1, role.c_str(), robot_states_[i].x, robot_states_[i].y, 
+                     desired_x, desired_y, error);
+        } else {
+            ROS_INFO("Robot %d: Not ready", i+1);
+        }
+    }
+}
 
+// 修改控制循环以支持PDE编队
 void PDEFormationController::controlLoop() {
-    ros::Rate rate(50);
-    int loop_count = 0;
-    double start_time = ros::Time::now().toSec();
+    ros::Rate rate(10);
     
-    ROS_INFO("Starting PDE formation control loop at 50Hz...");
+    ROS_INFO("Starting 4-robot PDE formation control...");
     
     while (ros::ok()) {
         double current_time = ros::Time::now().toSec();
         
         if (allRobotsReady()) {
-            for (int i = 0; i < pde_params_.N; i++) {
-                geometry_msgs::Twist cmd;
-                
-                if (i == 0 || i == pde_params_.N - 1) {
-                    cmd = computeBoundaryControl(i, current_time);
-                } else {
-                    cmd = computeFollowerControl(i, current_time);
-                }
-                
-                limitVelocity(cmd, 0.5, 1.0);
-                cmd_vel_pubs_[i].publish(cmd);
+            static bool first_success = true;
+            if (first_success) {
+                ROS_INFO("All 4 robots ready! Starting PDE formation control...");
+                first_success = false;
             }
             
-            // 每隔5秒打印一次状态
-            if (loop_count % 250 == 0) {
-                printSystemStatus();
+           for (int i = 0; i < pde_params_.N; i++) {
+    geometry_msgs::Twist cmd;
+    
+    if (i == 0 || i == pde_params_.N - 1) {
+        // 边界机器人（limo1和limo4）使用边界控制
+        cmd = computeBoundaryControlMultiRobot(i, current_time);
+    } else {
+        // 跟随者（limo2和limo3）使用PDE控制
+        cmd = computeFollowerControlMultiRobot(i, current_time);
+    }
+    
+    cmd_vel_pubs_[i].publish(cmd);
+}
+            
+            static int count = 0;
+            if (++count % 50 == 0) {
+                printFormationStatus();
             }
         } else {
+            // 发送停止命令
             geometry_msgs::Twist stop_cmd;
             for (int i = 0; i < pde_params_.N; i++) {
                 cmd_vel_pubs_[i].publish(stop_cmd);
             }
-            
-            if (loop_count % 100 == 0) {  // 每2秒打印一次
-                ROS_WARN("Waiting for all robots to be ready...");
-                for (int i = 0; i < pde_params_.N; i++) {
-                    if (!robot_states_[i].initialized) {
-                        ROS_WARN("  Robot %d (limo%d): not initialized", i+1, i+1);
-                    } else {
-                        double time_diff = (ros::Time::now() - robot_states_[i].last_update).toSec();
-                        if (time_diff > 0.5) {
-                            ROS_WARN("  Robot %d (limo%d): data too old (%.1fs)", i+1, i+1, time_diff);
-                        }
-                    }
-                }
-            }
+            ROS_WARN_THROTTLE(2.0, "Waiting for all robots to be ready...");
         }
         
-        loop_count++;
         ros::spinOnce();
         rate.sleep();
     }
 }
-
 void PDEFormationController::printSystemStatus() {
     static int status_count = 0;
     status_count++;

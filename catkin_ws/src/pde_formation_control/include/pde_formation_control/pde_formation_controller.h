@@ -30,43 +30,41 @@ private:
                       initialized(false) {}
     };
     
-    // PDE模型参数（基于论文）
-    struct PDEParameters {
-        std::vector<double> a_coeffs;  // x轴PDE系数
-        std::vector<double> b_coeffs;  // y轴PDE系数
-        int m;  // PDE阶数
-        double k0, ka;  // 边界控制增益
-        double K, L;    // Lyapunov函数参数
-        double p;       // 稳定性参数
-        double h;       // 空间步长
-        int N;          // 智能体数量
-        
-        PDEParameters() {
-            m = 5;
-            N = 4;
-            h = 1.0 / (N - 1);
-            
-            // PDE系数初始化
-            a_coeffs.resize(m + 1);
-            b_coeffs.resize(m + 1);
-            
-            a_coeffs[0] = 0.0;
-            a_coeffs[1] = 0.0;
-            a_coeffs[2] = 4 * M_PI * M_PI * 1e-4;
-            a_coeffs[3] = 38.0/15.0 * (4 * M_PI * M_PI) * 1e-4;
-            a_coeffs[4] = 1e-4;
-            a_coeffs[5] = 38.0/15.0 * 1e-4;
-            
-            b_coeffs = a_coeffs;
-            
-            k0 = -0.1;
-            ka = -0.1;
-            K = 1.0;
-            L = 1.0;
-            p = 0.5;
-        }
-    } pde_params_;
+ // 修改PDEParameters
+// PDE模型参数（基于论文）
+struct PDEParameters {
+    std::vector<double> a_coeffs;  // x轴PDE系数
+    std::vector<double> b_coeffs;  // y轴PDE系数
+    int m;  // PDE阶数
+    double k0, ka;  // 边界控制增益
+    double K, L;    // Lyapunov函数参数
+    double p;       // 稳定性参数
+    double h;       // 空间步长
+    int N;          // 智能体数量
     
+    PDEParameters() {
+        m = 3;  // 保持3阶
+        N = 4;  // 恢复4台机器人
+        h = 1.0 / (N - 1);
+        
+        // PDE系数
+        a_coeffs.resize(m + 1);
+        b_coeffs.resize(m + 1);
+        
+        a_coeffs[0] = 0.0;
+        a_coeffs[1] = 0.0;
+        a_coeffs[2] = 1.0;
+        a_coeffs[3] = -0.1;
+        
+        b_coeffs = a_coeffs;
+        
+        k0 = -0.5;
+        ka = -0.5;
+        K = 1.0;
+        L = 1.0;
+        p = 0.5;
+    }
+} pde_params_;
     // 圆形轨迹参数
     struct CircleTrajectory {
         double center_x, center_y;
@@ -113,6 +111,10 @@ private:
     void limitVelocity(geometry_msgs::Twist& cmd, double max_linear, double max_angular);
     void printSystemStatus();  // 用于控制台输出状态
     double wrapAngle(double angle);
+     // 新增的多机器人控制函数
+    geometry_msgs::Twist computeBoundaryControlMultiRobot(int robot_id, double t);
+    geometry_msgs::Twist computeFollowerControlMultiRobot(int robot_id, double t);
+    void printFormationStatus();  // 也需要添加这个
 };
 
 #endif
