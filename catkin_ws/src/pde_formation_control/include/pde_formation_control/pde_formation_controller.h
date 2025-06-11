@@ -1,106 +1,118 @@
-/**
- * @file pde_formation_controller.h
- * @brief PDE-based formation controller for multi-agent systems
- */
-
 #ifndef PDE_FORMATION_CONTROLLER_H
 #define PDE_FORMATION_CONTROLLER_H
 
 #include <ros/ros.h>
 #include <geometry_msgs/Twist.h>
-#include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
-#include <tf/transform_datatypes.h>
-#include <string>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <vector>
-#include <map>
 #include <cmath>
-#include <numeric>
+#include <string>
 
 class PDEFormationController {
-public:
-    enum AgentRole {
-        LEADER_ALPHA_0,  // 领导者在α=0处
-        LEADER_ALPHA_1,  // 领导者在α=1处
-        FOLLOWER         // 跟随者
-    };
-
-    // 构造函数
-    PDEFormationController(
-        ros::NodeHandle& nh, 
-        int robot_id,
-        AgentRole role,
-        double alpha
-    );
-
-    // 初始化函数
-    void initialize();
-    
-    // 更新期望编队参数
-    void updateDesiredFormation(double center_x, double center_y, double radius);
-
 private:
-    // ROS相关成员
     ros::NodeHandle nh_;
-    ros::Publisher cmd_vel_pub_;
-    ros::Subscriber odom_sub_;
-    ros::Publisher pose_pub_;
-    ros::Timer control_timer_;
-    std::vector<ros::Subscriber> neighbor_subs_;
-
-    // 智能体参数
-    int robot_id_;
-    AgentRole role_;
-    double alpha_;  // 空间参数 (0 <= alpha <= 1)
+    ros::NodeHandle pnh_;
     
-    // PDE模型参数
-    int pde_order_;              // PDE模型阶数
-    std::vector<double> a_coef_; // x轴PDE系数
-    std::vector<double> b_coef_; // y轴PDE系数
+    // 发布器和订阅器
+    std::vector<ros::Publisher> cmd_vel_pubs_;
+    std::vector<ros::Subscriber> odom_subs_;
     
-    // 控制器参数
-    double control_rate_;
-    double K_, L_;            // Lyapunov函数参数
-    double k0_, ka_;          // 领导者反馈增益
+    // 机器人状态结构
+    struct RobotState {
+        double x, y, theta;
+        double vx, vy, vtheta;
+        bool initialized;
+        ros::Time last_update;
+        
+        RobotState() : x(0), y(0), theta(0), vx(0), vy(0), vtheta(0), 
+                      initialized(false) {}
+    };
     
-    // 编队参数
-    double formation_center_x_;
-    double formation_center_y_;
-    double formation_radius_;
+    // PDE模型参数（基于论文）
+    struct PDEParameters {
+        std::vector<double> a_coeffs;  // x轴PDE系数
+        std::vector<double> b_coeffs;  // y轴PDE系数
+        int m;  // PDE阶数
+        double k0, ka;  // 边界控制增益
+        double K, L;    // Lyapunov函数参数
+        double p;       // 稳定性参数
+        double h;       // 空间步长
+        int N;          // 智能体数量
+        
+        PDEParameters() {
+            m = 5;
+            N = 4;
+            h = 1.0 / (N - 1);
+            
+            // PDE系数初始化
+            a_coeffs.resize(m + 1);
+            b_coeffs.resize(m + 1);
+            
+            a_coeffs[0] = 0.0;
+            a_coeffs[1] = 0.0;
+            a_coeffs[2] = 4 * M_PI * M_PI * 1e-4;
+            a_coeffs[3] = 38.0/15.0 * (4 * M_PI * M_PI) * 1e-4;
+            a_coeffs[4] = 1e-4;
+            a_coeffs[5] = 38.0/15.0 * 1e-4;
+            
+            b_coeffs = a_coeffs;
+            
+            k0 = -0.1;
+            ka = -0.1;
+            K = 1.0;
+            L = 1.0;
+            p = 0.5;
+        }
+    } pde_params_;
     
-    // 当前状态
-    double x_, y_, theta_;
+    // 圆形轨迹参数
+    struct CircleTrajectory {
+        double center_x, center_y;
+        double radius;
+        double angular_freq;
+        double start_time;
+        
+        CircleTrajectory() : center_x(0.0), center_y(0.0), radius(0.8), 
+                           angular_freq(0.3), start_time(0.0) {}
+    } circle_traj_;
     
-    // 邻居位置
-    std::map<int, std::pair<double, double>> neighbor_positions_;
+    std::vector<RobotState> robot_states_;
+    std::vector<double> alpha_values_;
     
-    // 边界条件期望值
-    double u0_bar_;     // x(0,t)的期望值
-    double ua_bar_;     // x(1,t)的期望值
-    std::vector<double> u0j_; // x^(j)(0,t)的期望值
-    std::vector<double> ual_; // x^(l)(1,t)的期望值
+    // 期望轨迹结构
+    struct DesiredState {
+        double x, y;
+        double vx, vy;
+        std::vector<double> derivatives_x;
+        std::vector<double> derivatives_y;
+    };
+    std::vector<DesiredState> desired_states_;
     
-    double v0_bar_;     // y(0,t)的期望值
-    double va_bar_;     // y(1,t)的期望值
-    std::vector<double> v0j_; // y^(j)(0,t)的期望值
-    std::vector<double> val_; // y^(l)(1,t)的期望值
+public:
+    PDEFormationController();
+    ~PDEFormationController() = default;
     
-    // 回调函数
-    void odomCallback(const nav_msgs::Odometry::ConstPtr& msg);
-    void neighborCallback(const geometry_msgs::PoseStamped::ConstPtr& msg, int neighbor_id);
-    void controlLoop(const ros::TimerEvent& event);
+    void initialize();
+    void controlLoop();
     
-    // 控制方法
-    geometry_msgs::Twist computeLeaderControl();
-    geometry_msgs::Twist computeFollowerControl();
-    geometry_msgs::Twist computeSimpleControl(); // 简单控制，无需邻居数据
+private:
+    void initializePublishersSubscribers();
+    void initializeRobotStates();
+    void odomCallback(const nav_msgs::Odometry::ConstPtr& msg, int robot_id);
     
-    // 计算空间导数
-    double calculateSpatialDerivative(int s, bool is_x);
+    DesiredState computeDesiredTrajectory(double alpha, double t);
+    geometry_msgs::Twist computeBoundaryControl(int robot_id, double t);
+    geometry_msgs::Twist computeFollowerControl(int robot_id, double t);
+    double computePDEDiscretization(int robot_id, bool is_x_axis);
+    double computeFiniteDifference(const std::vector<double>& values, int order, double h);
     
-    // 计算期望位置和导数
-    double desiredPosition(double alpha, bool is_x);
-    double desiredSpatialDerivative(double alpha, int order, bool is_x);
+    bool checkStabilityConditions();
+    bool allRobotsReady();
+    void limitVelocity(geometry_msgs::Twist& cmd, double max_linear, double max_angular);
+    void printSystemStatus();  // 用于控制台输出状态
+    double wrapAngle(double angle);
 };
 
-#endif // PDE_FORMATION_CONTROLLER_H
+#endif

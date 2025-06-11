@@ -1,72 +1,44 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(pde_formation_control)
 
-## Find catkin and any catkin packages
+add_compile_options(-std=c++14)
+
 find_package(catkin REQUIRED COMPONENTS
   roscpp
-  std_msgs
   geometry_msgs
   nav_msgs
-  tf
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
 )
 
-## Declare a catkin package
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS roscpp std_msgs geometry_msgs nav_msgs tf
+  CATKIN_DEPENDS roscpp geometry_msgs nav_msgs tf2 tf2_ros tf2_geometry_msgs
 )
 
-## Build
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
 )
 
-## Declare a C++ library
-add_library(${PROJECT_NAME}
+add_executable(formation_controller 
   src/pde_formation_controller.cpp
 )
 
-## Add dependencies to the library
-add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
-## Specify libraries to link a library or executable target against
-target_link_libraries(${PROJECT_NAME}
+target_link_libraries(formation_controller
   ${catkin_LIBRARIES}
 )
 
-## Declare a C++ executable
-add_executable(pde_formation_node src/pde_formation_node.cpp)
-
-## Add dependencies to the executable
-add_dependencies(pde_formation_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
-add_executable(basic_controller src/basic_controller.cpp)
-target_link_libraries(basic_controller ${catkin_LIBRARIES})
-
-## Specify libraries to link the executable target against
-target_link_libraries(pde_formation_node
-  ${PROJECT_NAME}
-  ${catkin_LIBRARIES}
+add_dependencies(formation_controller 
+  ${${PROJECT_NAME}_EXPORTED_TARGETS} 
+  ${catkin_EXPORTED_TARGETS}
 )
 
-## Install
-install(TARGETS ${PROJECT_NAME} pde_formation_node
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+install(TARGETS formation_controller
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-## Install headers
-install(DIRECTORY include/${PROJECT_NAME}/
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-  FILES_MATCHING PATTERN "*.h"
-  PATTERN ".svn" EXCLUDE
-)
-
-## Install launch files
-install(DIRECTORY launch/
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
-  FILES_MATCHING PATTERN "*.launch"
+install(DIRECTORY launch config
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
