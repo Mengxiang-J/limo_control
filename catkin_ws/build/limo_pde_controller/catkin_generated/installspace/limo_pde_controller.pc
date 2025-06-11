@@ -1,4 +1,4 @@
-prefix=/home/agilex/catkin_ws/install
+prefix=/home/edu/limo_control/catkin_ws/install
 
 Name: limo_pde_controller
 Description: Description of limo_pde_controller

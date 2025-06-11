@@ -67,14 +67,14 @@ set(pde_formation_control_CONFIG_INCLUDED TRUE)
 
 # set variables for source/devel/install prefixes
 if("FALSE" STREQUAL "TRUE")
-  set(pde_formation_control_SOURCE_PREFIX /home/agilex/catkin_ws/src/pde_formation_control)
-  set(pde_formation_control_DEVEL_PREFIX /home/agilex/catkin_ws/devel)
+  set(pde_formation_control_SOURCE_PREFIX /home/edu/limo_control/catkin_ws/src/pde_formation_control)
+  set(pde_formation_control_DEVEL_PREFIX /home/edu/limo_control/catkin_ws/devel)
   set(pde_formation_control_INSTALL_PREFIX "")
   set(pde_formation_control_PREFIX ${pde_formation_control_DEVEL_PREFIX})
 else()
   set(pde_formation_control_SOURCE_PREFIX "")
   set(pde_formation_control_DEVEL_PREFIX "")
-  set(pde_formation_control_INSTALL_PREFIX /home/agilex/catkin_ws/install)
+  set(pde_formation_control_INSTALL_PREFIX /home/edu/limo_control/catkin_ws/install)
   set(pde_formation_control_PREFIX ${pde_formation_control_INSTALL_PREFIX})
 endif()
 
@@ -116,7 +116,7 @@ if(NOT "include " STREQUAL " ")
   endforeach()
 endif()
 
-set(libraries "pde_formation_control")
+set(libraries "")
 foreach(library ${libraries})
   # keep build configuration keywords, target names and absolute libraries as-is
   if("${library}" MATCHES "^(debug|optimized|general)$")
@@ -154,7 +154,7 @@ foreach(library ${libraries})
     set(lib_path "")
     set(lib "${library}-NOTFOUND")
     # since the path where the library is found is returned we have to iterate over the paths manually
-    foreach(path /home/agilex/catkin_ws/install/lib;/home/agilex/agilex_ws/devel/lib;/opt/ros/melodic/lib)
+    foreach(path /home/edu/limo_control/catkin_ws/install/lib;/home/edu/catkin_ws/devel/lib;/opt/ros/noetic/lib)
       find_library(lib ${library}
         PATHS ${path}
         NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
@@ -185,7 +185,7 @@ foreach(t ${pde_formation_control_EXPORTED_TARGETS})
   endif()
 endforeach()
 
-set(depends "roscpp;std_msgs;geometry_msgs;nav_msgs;tf")
+set(depends "roscpp;geometry_msgs;nav_msgs;tf2;tf2_ros;tf2_geometry_msgs")
 foreach(depend ${depends})
   string(REPLACE " " ";" depend_list ${depend})
   # the package name of the dependency must be kept in a unique variable so that it is not overwritten in recursive calls
@@ -211,7 +211,7 @@ foreach(depend ${depends})
   _unpack_libraries_with_build_configuration(pde_formation_control_LIBRARIES ${pde_formation_control_LIBRARIES})
 
   _list_append_unique(pde_formation_control_LIBRARY_DIRS ${${pde_formation_control_dep}_LIBRARY_DIRS})
-  list(APPEND pde_formation_control_EXPORTED_TARGETS ${${pde_formation_control_dep}_EXPORTED_TARGETS})
+  _list_append_deduplicate(pde_formation_control_EXPORTED_TARGETS ${${pde_formation_control_dep}_EXPORTED_TARGETS})
 endforeach()
 
 set(pkg_cfg_extras "")

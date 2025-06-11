@@ -1,4 +1,4 @@
-prefix=/home/agilex/catkin_ws/devel
+prefix=/home/edu/limo_control/catkin_ws/devel
 
 Name: limo_pde_controller
 Description: Description of limo_pde_controller

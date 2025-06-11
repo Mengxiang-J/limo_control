@@ -1,8 +1,8 @@
 # generated from catkin/cmake/template/pkg.context.pc.in
 CATKIN_PACKAGE_PREFIX = ""
-PROJECT_PKG_CONFIG_INCLUDE_DIRS = "/home/agilex/catkin_ws/src/pde_formation_control/include".split(';') if "/home/agilex/catkin_ws/src/pde_formation_control/include" != "" else []
-PROJECT_CATKIN_DEPENDS = "roscpp;std_msgs;geometry_msgs;nav_msgs;tf".replace(';', ' ')
-PKG_CONFIG_LIBRARIES_WITH_PREFIX = "-lpde_formation_control".split(';') if "-lpde_formation_control" != "" else []
+PROJECT_PKG_CONFIG_INCLUDE_DIRS = "/home/edu/limo_control/catkin_ws/src/pde_formation_control/include".split(';') if "/home/edu/limo_control/catkin_ws/src/pde_formation_control/include" != "" else []
+PROJECT_CATKIN_DEPENDS = "roscpp;geometry_msgs;nav_msgs;tf2;tf2_ros;tf2_geometry_msgs".replace(';', ' ')
+PKG_CONFIG_LIBRARIES_WITH_PREFIX = "".split(';') if "" != "" else []
 PROJECT_NAME = "pde_formation_control"
-PROJECT_SPACE_DIR = "/home/agilex/catkin_ws/devel"
-PROJECT_VERSION = "0.1.0"
+PROJECT_SPACE_DIR = "/home/edu/limo_control/catkin_ws/devel"
+PROJECT_VERSION = "1.0.0"

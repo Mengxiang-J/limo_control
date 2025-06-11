@@ -1,8 +1,8 @@
-prefix=/home/agilex/catkin_ws/devel
+prefix=/home/edu/limo_control/catkin_ws/devel
 
 Name: pde_formation_control
 Description: Description of pde_formation_control
-Version: 0.1.0
-Cflags: -I/home/agilex/catkin_ws/src/pde_formation_control/include
-Libs: -L${prefix}/lib -lpde_formation_control
-Requires: roscpp std_msgs geometry_msgs nav_msgs tf
+Version: 1.0.0
+Cflags: -I/home/edu/limo_control/catkin_ws/src/pde_formation_control/include
+Libs: -L${prefix}/lib 
+Requires: roscpp geometry_msgs nav_msgs tf2 tf2_ros tf2_geometry_msgs

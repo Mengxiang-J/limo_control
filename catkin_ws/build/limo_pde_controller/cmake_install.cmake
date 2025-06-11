@@ -1,8 +1,8 @@
-# Install script for directory: /home/agilex/catkin_ws/src/limo_pde_controller
+# Install script for directory: /home/edu/limo_control/catkin_ws/src/limo_pde_controller
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
-  set(CMAKE_INSTALL_PREFIX "/home/agilex/catkin_ws/install")
+  set(CMAKE_INSTALL_PREFIX "/home/edu/limo_control/catkin_ws/install")
 endif()
 string(REGEX REPLACE "/$" "" CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 
@@ -37,23 +37,18 @@ if(NOT DEFINED CMAKE_CROSSCOMPILING)
   set(CMAKE_CROSSCOMPILING "FALSE")
 endif()
 
-# Set default install directory permissions.
-if(NOT DEFINED CMAKE_OBJDUMP)
-  set(CMAKE_OBJDUMP "/usr/bin/objdump")
-endif()
-
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig" TYPE FILE FILES "/home/agilex/catkin_ws/build/limo_pde_controller/catkin_generated/installspace/limo_pde_controller.pc")
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig" TYPE FILE FILES "/home/edu/limo_control/catkin_ws/build/limo_pde_controller/catkin_generated/installspace/limo_pde_controller.pc")
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/limo_pde_controller/cmake" TYPE FILE FILES
-    "/home/agilex/catkin_ws/build/limo_pde_controller/catkin_generated/installspace/limo_pde_controllerConfig.cmake"
-    "/home/agilex/catkin_ws/build/limo_pde_controller/catkin_generated/installspace/limo_pde_controllerConfig-version.cmake"
+    "/home/edu/limo_control/catkin_ws/build/limo_pde_controller/catkin_generated/installspace/limo_pde_controllerConfig.cmake"
+    "/home/edu/limo_control/catkin_ws/build/limo_pde_controller/catkin_generated/installspace/limo_pde_controllerConfig-version.cmake"
     )
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/limo_pde_controller" TYPE FILE FILES "/home/agilex/catkin_ws/src/limo_pde_controller/package.xml")
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/limo_pde_controller" TYPE FILE FILES "/home/edu/limo_control/catkin_ws/src/limo_pde_controller/package.xml")
 endif()
 

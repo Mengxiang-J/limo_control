@@ -1,8 +1,7 @@
 file(REMOVE_RECURSE
-  "/home/agilex/catkin_ws/devel/lib/limo_pde_controller/limo_pde_circle_controller"
-  "/home/agilex/catkin_ws/devel/lib/limo_pde_controller/limo_pde_circle_controller.pdb"
   "CMakeFiles/limo_pde_circle_controller.dir/src/limo_pde_circle_controller.cpp.o"
-  "CMakeFiles/limo_pde_circle_controller.dir/src/limo_pde_circle_controller.cpp.o.d"
+  "/home/edu/limo_control/catkin_ws/devel/lib/limo_pde_controller/limo_pde_circle_controller.pdb"
+  "/home/edu/limo_control/catkin_ws/devel/lib/limo_pde_controller/limo_pde_circle_controller"
 )
 
 # Per-language clean rules from dependency scanning.

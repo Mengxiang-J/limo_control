@@ -4,5 +4,5 @@ PROJECT_PKG_CONFIG_INCLUDE_DIRS = "".split(';') if "" != "" else []
 PROJECT_CATKIN_DEPENDS = "".replace(';', ' ')
 PKG_CONFIG_LIBRARIES_WITH_PREFIX = "".split(';') if "" != "" else []
 PROJECT_NAME = "limo_pde_controller"
-PROJECT_SPACE_DIR = "/home/agilex/catkin_ws/install"
+PROJECT_SPACE_DIR = "/home/edu/limo_control/catkin_ws/install"
 PROJECT_VERSION = "0.1.0"
