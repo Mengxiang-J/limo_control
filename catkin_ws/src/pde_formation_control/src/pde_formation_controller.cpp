@@ -59,7 +59,7 @@ void PDEFormationController::initializePublishersSubscribers() {
     cmd_vel_pubs_.resize(pde_params_.N);
     odom_subs_.resize(pde_params_.N);
     
-    // 使用统一的话题命名
+    // 强制使用统一的话题命名，不再自动检测
     std::vector<std::string> cmd_topics = {
         "/limo1/cmd_vel", "/limo2/cmd_vel", "/limo3/cmd_vel", "/limo4/cmd_vel"
     };
@@ -67,6 +67,8 @@ void PDEFormationController::initializePublishersSubscribers() {
         "/limo1/odom", "/limo2/odom", "/limo3/odom", "/limo4/odom"
     };
     std::vector<std::string> robot_names = {"limo1", "limo2", "limo3", "limo4"};
+    
+    ROS_INFO("Using unified topic structure for all 4 robots");
     
     for (int i = 0; i < pde_params_.N; i++) {
         cmd_vel_pubs_[i] = nh_.advertise<geometry_msgs::Twist>(cmd_topics[i], 10);
@@ -77,9 +79,21 @@ void PDEFormationController::initializePublishersSubscribers() {
         
         ROS_INFO("Setup robot %d (%s): cmd_vel->%s, odom->%s", 
                  i+1, robot_names[i].c_str(), cmd_topics[i].c_str(), odom_topics[i].c_str());
+        
+        // 等待一下让连接建立
+        ros::Duration(0.2).sleep();
+        ros::spinOnce();
     }
     
-    ros::Duration(2.0).sleep();
+    // 等待所有连接建立
+    ROS_INFO("Waiting for all robot connections to establish...");
+    ros::Duration(3.0).sleep();
+    
+    // 检查连接状态
+    for (int i = 0; i < pde_params_.N; i++) {
+        int num_subscribers = cmd_vel_pubs_[i].getNumSubscribers();
+        ROS_INFO("Robot %d cmd_vel has %d subscribers", i+1, num_subscribers);
+    }
 }
 void PDEFormationController::odomCallback(const nav_msgs::Odometry::ConstPtr& msg, int robot_id) {
     if (robot_id < 0 || robot_id >= pde_params_.N) {
@@ -389,11 +403,33 @@ void PDEFormationController::printFormationStatus() {
     }
 }
 
-// 修改控制循环以支持PDE编队
 void PDEFormationController::controlLoop() {
     ros::Rate rate(10);
     
     ROS_INFO("Starting 4-robot PDE formation control...");
+    
+    // 详细的连接检查
+    ROS_INFO("Performing detailed connection check...");
+    for (int i = 0; i < 10; i++) {  // 检查10次
+        ros::spinOnce();
+        
+        int ready_count = 0;
+        for (int j = 0; j < pde_params_.N; j++) {
+            if (robot_states_[j].initialized) {
+                ready_count++;
+            }
+        }
+        
+        ROS_INFO("Connection check %d/10: %d/%d robots ready", 
+                 i+1, ready_count, pde_params_.N);
+        
+        if (ready_count == pde_params_.N) {
+            ROS_INFO("All robots connected successfully!");
+            break;
+        }
+        
+        ros::Duration(1.0).sleep();
+    }
     
     while (ros::ok()) {
         double current_time = ros::Time::now().toSec();
@@ -405,31 +441,43 @@ void PDEFormationController::controlLoop() {
                 first_success = false;
             }
             
-           for (int i = 0; i < pde_params_.N; i++) {
-    geometry_msgs::Twist cmd;
-    
-    if (i == 0 || i == pde_params_.N - 1) {
-        // 边界机器人（limo1和limo4）使用边界控制
-        cmd = computeBoundaryControlMultiRobot(i, current_time);
-    } else {
-        // 跟随者（limo2和limo3）使用PDE控制
-        cmd = computeFollowerControlMultiRobot(i, current_time);
-    }
-    
-    cmd_vel_pubs_[i].publish(cmd);
-}
+            for (int i = 0; i < pde_params_.N; i++) {
+                geometry_msgs::Twist cmd;
+                
+                if (i == 0 || i == pde_params_.N - 1) {
+                    cmd = computeBoundaryControlMultiRobot(i, current_time);
+                } else {
+                    cmd = computeFollowerControlMultiRobot(i, current_time);
+                }
+                
+                cmd_vel_pubs_[i].publish(cmd);
+            }
             
             static int count = 0;
             if (++count % 50 == 0) {
                 printFormationStatus();
             }
         } else {
-            // 发送停止命令
+            // 发送停止命令并详细报告哪些机器人没准备好
             geometry_msgs::Twist stop_cmd;
             for (int i = 0; i < pde_params_.N; i++) {
                 cmd_vel_pubs_[i].publish(stop_cmd);
             }
-            ROS_WARN_THROTTLE(2.0, "Waiting for all robots to be ready...");
+            
+            static int warn_count = 0;
+            if (++warn_count % 20 == 0) {  // 每2秒详细报告一次
+                ROS_WARN("Robots not ready:");
+                for (int i = 0; i < pde_params_.N; i++) {
+                    if (!robot_states_[i].initialized) {
+                        ROS_WARN("  Robot %d (limo%d): No odometry data received", i+1, i+1);
+                    } else {
+                        double time_diff = (ros::Time::now() - robot_states_[i].last_update).toSec();
+                        if (time_diff > 0.5) {
+                            ROS_WARN("  Robot %d (limo%d): Data too old (%.1fs ago)", i+1, i+1, time_diff);
+                        }
+                    }
+                }
+            }
         }
         
         ros::spinOnce();
