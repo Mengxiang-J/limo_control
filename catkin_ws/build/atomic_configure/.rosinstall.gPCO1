@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/edu/limo_control/catkin_ws/devel/setup.sh

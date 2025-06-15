@@ -1,10 +1,18 @@
 <launch>
-    <!-- Main Formation Controller -->
-    <node name="pde_formation_controller" pkg="pde_formation_control" type="formation_controller" output="screen">
-        <!-- Circle trajectory parameters -->
-        <param name="circle_radius" value="0.8"/>
-        <param name="angular_frequency" value="0.3"/>
-        <param name="center_x" value="0.0"/>
-        <param name="center_y" value="0.0"/>
-    </node>
+  <!-- 全局参数配置 -->
+  <arg name="circle_radius" default="1.0"/>
+  <arg name="angular_frequency" default="0.3"/>
+  <arg name="center_x" default="0.0"/>
+  <arg name="center_y" default="0.0"/>
+
+ <node name="pde_formation_controller" 
+      pkg="pde_formation_control" 
+      type="formation_controller" 
+      output="screen">
+    <!-- 核心参数 -->
+    <param name="circle_radius" value="$(arg circle_radius)"/>
+    <param name="angular_frequency" value="$(arg angular_frequency)"/>
+    <param name="center_x" value="$(arg center_x)"/>
+    <param name="center_y" value="$(arg center_y)"/>
+  </node>
 </launch>
